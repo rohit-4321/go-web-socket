@@ -9,7 +9,11 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-var upgrader = websocket.Upgrader{}
+var (
+	connQueue  = make([]*Co, 0)
+	queueMutex = sync.Mutex{}
+	upgrader   = websocket.Upgrader{}
+)
 
 type Co struct {
 	Id        string
@@ -18,15 +22,38 @@ type Co struct {
 	Conn      *websocket.Conn
 }
 
-var (
-	connQueue  = make([]*Co, 0)
-	queueMutex = sync.Mutex{}
-)
+func (conn *Co) SendMessage(messageType int, data []byte) error {
+	err := conn.Conn.WriteMessage(messageType, data)
+	if err != nil {
+		return err
+	}
+	return nil
+}
 
+func (conn *Co) ReadLoop() {
+	for {
+		mt, p, err := conn.Conn.ReadMessage()
+		if err != nil {
+			fmt.Println("Read Erro : ", err)
+			break
+		}
+		if conn.Recipient != nil {
+			errSend := conn.Recipient.SendMessage(mt, p)
+			if errSend != nil {
+				fmt.Println("Error in sending to receiver...")
+				break
+			}
+		}
+	}
+}
+func (conn *Co) Close() {
+	conn.Close()
+}
 func GetConn(w http.ResponseWriter, r *http.Request) (*Co, error) {
 	c, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
+		fmt.Println(err)
 		fmt.Fprint(w, "Using bad Protocol")
 		return nil, err
 	}
@@ -45,8 +72,8 @@ func GetConn(w http.ResponseWriter, r *http.Request) (*Co, error) {
 		gCon.Recipient = recConn
 		recConn.Recipient = gCon
 
-		gCon.Conn.WriteMessage(websocket.TextMessage, []byte("Connected with"+recConn.Name))
-		recConn.Conn.WriteMessage(websocket.TextMessage, []byte("Connected with"+gCon.Name))
+		gCon.SendMessage(websocket.TextMessage, []byte("Connected with"+recConn.Name))
+		recConn.SendMessage(websocket.TextMessage, []byte("Connected with"+gCon.Name))
 
 	} else {
 		connQueue = []*Co{gCon}
@@ -55,26 +82,6 @@ func GetConn(w http.ResponseWriter, r *http.Request) (*Co, error) {
 	return gCon, nil
 }
 
-func (conn *Co) ReadLoop() {
-	for {
-		mt, p, err := conn.Conn.ReadMessage()
-		if err != nil {
-			fmt.Println("Read Erro : ", err)
-			break
-		}
-		haveReceipent := conn.Recipient
-		if haveReceipent != nil {
-			errSend := haveReceipent.Conn.WriteMessage(mt, p)
-			if errSend != nil {
-				fmt.Println("Error in sending to receiver...")
-				break
-			}
-		}
-	}
-}
-func (conn *Co) Close() {
-	conn.Close()
-}
 func handleCloseConnections(code int, text string) error {
 	fmt.Print("connection closed................")
 	return nil

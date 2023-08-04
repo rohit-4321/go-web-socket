@@ -10,10 +10,11 @@ import (
 const port = 8080
 
 func main() {
-	http.HandleFunc("/", handler.HomeHandler)
-	http.HandleFunc("/conn", handler.SocketHandler)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", handler.HomeHandler)
+	mux.HandleFunc("/conn", handler.SocketHandler)
 	fmt.Printf("Starting server in port %d\n", port)
-	err := http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
+	err := http.ListenAndServe(fmt.Sprintf(":%d", port), mux)
 	if err != nil {
 		fmt.Println("Error in staring server:\n", err)
 	} else {
