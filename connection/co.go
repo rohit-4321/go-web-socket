@@ -64,6 +64,7 @@ func GetConn(w http.ResponseWriter, r *http.Request) (*Co, error) {
 	gCon.Id = uuid.New().String()
 	gCon.Conn = c
 	gCon.Conn.SetCloseHandler(handleCloseConnections)
+
 	queueMutex.Lock()
 
 	if len(connQueue) > 0 {
@@ -79,6 +80,7 @@ func GetConn(w http.ResponseWriter, r *http.Request) (*Co, error) {
 		connQueue = []*Co{gCon}
 	}
 	queueMutex.Unlock()
+
 	return gCon, nil
 }
 

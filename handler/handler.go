@@ -24,7 +24,8 @@ func SocketHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func HomeHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprint(w, "Hello From GO server.")
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprint(w, "Hello From Go server.")
 }
 
 func handleNoNameFound(w http.ResponseWriter) {

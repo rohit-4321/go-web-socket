@@ -14,7 +14,7 @@ func main() {
 	mux.HandleFunc("/", handler.HomeHandler)
 	mux.HandleFunc("/conn", handler.SocketHandler)
 	fmt.Printf("Starting server in port %d\n", port)
-	err := http.ListenAndServe(fmt.Sprintf(":%d", port), mux)
+	err := http.ListenAndServe(fmt.Sprintf("127.0.0.1:%d", port), mux)
 	if err != nil {
 		fmt.Println("Error in staring server:\n", err)
 	} else {
