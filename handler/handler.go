@@ -8,8 +8,9 @@ import (
 )
 
 func SocketHandler(w http.ResponseWriter, r *http.Request) {
-	userName := r.Header.Get("name")
-	println("Request")
+	query := r.URL.Query()
+	userName := query.Get("name")
+	fmt.Printf("%s is connecting\n", userName)
 	if userName == "" {
 		handleNoNameFound(w)
 		return

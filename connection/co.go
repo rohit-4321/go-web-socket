@@ -12,7 +12,12 @@ import (
 var (
 	connQueue  = make([]*Co, 0)
 	queueMutex = sync.Mutex{}
-	upgrader   = websocket.Upgrader{}
+	upgrader   = websocket.Upgrader{
+		ReadBufferSize:  1024,
+		WriteBufferSize: 1024,
+		// Add this line if you want to allow any origin to connect
+		CheckOrigin: func(r *http.Request) bool { return true },
+	}
 )
 
 type Co struct {
@@ -20,6 +25,7 @@ type Co struct {
 	Name      string
 	Recipient *Co
 	Conn      *websocket.Conn
+	IsCaller  bool
 }
 
 func (conn *Co) SendMessage(messageType int, data []byte) error {
@@ -46,8 +52,8 @@ func (conn *Co) ReadLoop() {
 		}
 	}
 }
-func (conn *Co) Close() {
-	conn.Close()
+func (co *Co) Close() {
+	co.Conn.Close()
 }
 func GetConn(w http.ResponseWriter, r *http.Request) (*Co, error) {
 	c, err := upgrader.Upgrade(w, r, nil)
@@ -57,9 +63,11 @@ func GetConn(w http.ResponseWriter, r *http.Request) (*Co, error) {
 		fmt.Fprint(w, "Using bad Protocol")
 		return nil, err
 	}
+	query := r.URL.Query()
+	userName := query.Get("name")
 	gCon := &Co{
 		Recipient: nil,
-		Name:      r.Header.Get("name"),
+		Name:      userName,
 	}
 	gCon.Id = uuid.New().String()
 	gCon.Conn = c
@@ -73,8 +81,10 @@ func GetConn(w http.ResponseWriter, r *http.Request) (*Co, error) {
 		gCon.Recipient = recConn
 		recConn.Recipient = gCon
 
-		gCon.SendMessage(websocket.TextMessage, []byte("Connected with"+recConn.Name))
-		recConn.SendMessage(websocket.TextMessage, []byte("Connected with"+gCon.Name))
+		gCon.IsCaller = false
+		recConn.IsCaller = true
+		gCon.SendMessage(websocket.TextMessage, GetOnConnectMessage(recConn.Name, gCon.IsCaller).GetJson())
+		recConn.SendMessage(websocket.TextMessage, GetOnConnectMessage(gCon.Name, recConn.IsCaller).GetJson())
 
 	} else {
 		connQueue = []*Co{gCon}
